@@ -1,93 +1,199 @@
-# 🏎️ Asphalt – 8088 Assembly Game Engine
+Car Dodging Game (x86 Assembly – 16-bit Real Mode)
 
-![Language](https://img.shields.io/badge/Language-Assembly_8088-red)
-![Platform](https://img.shields.io/badge/Platform-MS_DOS-blue)
-![Architecture](https://img.shields.io/badge/Arch-16_bit_Real_Mode-yellow)
-![Status](https://img.shields.io/badge/Status-Completed-success)
+A simple car dodging and coin collection game written entirely in x86 Assembly, running in text mode (80×25) by directly manipulating video memory at 0xB800.
+This project demonstrates low-level graphics, keyboard input handling, game logic, and screen rendering without any external libraries.
 
-> A high-performance, real-time arcade racing simulation engineered entirely in **16-bit x86 Assembly**. Featuring direct hardware manipulation, custom interrupt handling for multitasking, and direct memory access rendering.
+📌 Features
 
----
+🚗 Player-controlled car (move left/right using arrow keys)
 
-## 📜 Table of Contents
-- [Abstract](#-abstract)
-- [Key Features](#-key-features)
-- [System Architecture](#-system-architecture)
-- [Technical Implementation](#-technical-implementation)
-- [Game Logic Flow](#-game-logic-flow)
-- [How to Run](#-how-to-run)
-- [Controls](#-controls)
-- [Future Work](#-future-work)
-- [Development Team](#-development-team)
+🚧 Obstacles falling from the top
 
----
+🪙 Coins to collect
 
-## 📖 Abstract
-**Asphalt** is an academic semester project developed at **FAST-NUCES Lahore** designed to push the limits of the Intel 8088 architecture. Unlike high-level applications that rely on OS abstractions, Asphalt operates in **Real Mode**, interacting directly with the CPU registers, system stack, and hardware I/O ports.
+💥 Collision detection
 
-The core engineering challenge was to implement a **non-blocking game loop** where game logic (physics, collision, rendering) runs concurrently with a background audio engine, effectively simulating multitasking on a single-threaded processor.
+📈 Score system (coins collected)
 
----
+🔁 Looping gameplay
 
-## 🚀 Key Features
+📺 Text-mode rendering using raw video memory writes
 
-- **⚡ Asynchronous Audio Engine:** Implemented a custom **Interrupt Service Routine (ISR)** by hooking the hardware timer interrupt (`0x1C`). This allows background music and sound effects to play without freezing the game loop.
-- **🖥️ Direct Memory Access (DMA) Rendering:** Bypasses slow BIOS interrupts (`INT 10h`) and writes directly to the Video Memory Segment (`0xB800`) for flicker-free, high-speed graphics.
-- **⛽ Dynamic Resource Economy:** Features a fuel consumption system that forces aggressive gameplay (collecting coins to refuel) rather than passive dodging.
-- **🎲 Pseudo-Random Generation:** Utilizes the System Clock (`INT 1A`) to seed a Linear Congruential Generator (LCG) for unpredictable obstacle spawning logic.
+⌨️ Real-time keyboard input via BIOS interrupt
 
----
+🛠️ Tech Stack
 
-## ⚙️ System Architecture
+Language: x86 Assembly (MASM / TASM / NASM 16-bit syntax)
 
-The application is designed as a `.COM` executable within a 64KB segment. It consists of three primary subsystems:
+Mode: 16-bit Real Mode
 
-1.  **The Game Loop:** A polling-based loop that manages state transitions.
-2.  **The Rendering Engine:** A DMA-based system that draws ASCII sprites to the Video Segment.
-3.  **The Audio Scheduler:** An interrupt-driven background process.
+Graphics: Text mode using video memory (0xB800)
 
-### Video Memory Mapping
-The screen is treated as a linear 1D array mapped to the segment `0xB800`.
-- **Addressing Formula:** `Offset = (Row * 160) + (Col * 2)`
-- **Sprite Rendering:** Sprites are constructed programmatically using extended ASCII block characters (`0xDB`, `0xDC`, `0xDF`) with specific attribute bytes for color.
+Input: BIOS interrupt INT 16h
 
----
+Environment: DOSBox / Emu8086 / MASM / TASM / NASM
 
-## 🛠️ Technical Implementation
+📂 File Structure
+/Car-Game-Assembly
+│
+├── game.asm       # Main game source code
+├── README.md      # Documentation
+└── assets/        # (Optional) Game screenshots or GIFs
 
-### 1. The Audio Scheduler (ISR Hook) - *The USP*
-Standard Assembly `beep` routines pause the CPU. We solved this by hooking the 18.2 Hz system timer.
+🚀 How to Run
+1. Using DOSBox
+masm game.asm;
+link game.obj;
+game.exe
 
-The ISR logic follows a priority queue:
+2. Using TASM
+tasm game.asm
+tlink game.obj
+game.exe
 
-Priority 1: Collision Sound
+3. Using Emu8086
 
-Priority 2: Coin Collection Sound
+Just open the .asm file and click Run → Emulate.
 
-Priority 3: Background Music (Looping)
+🎮 Controls
+Key	Action
+⬅️ Left Arrow	Move car left
+➡️ Right Arrow	Move car right
+🧠 How the Game Works (Technical Breakdown)
 
-2. Collision Detection (AABB)
-Collision is handled using Axis-Aligned Bounding Box logic.
+This section explains how each part of your code works in a clean, professional way.
 
-Horizontal Check: IF Player_Col == Obstacle_Col
+1. 🎨 Writing to Video Memory
 
-Vertical Check: IF (Player_Row - Obstacle_Row) < 4
+The program renders graphics by writing characters + colors directly to:
 
-If both are true, the game_over flag is set.
+0xB800:0000
 
 
-Here is the complete, formatted README.md file. It incorporates all the technical details from your report, the diagrams, and the contributor information.
+Each cell = 2 bytes
 
-You can copy the code block below directly into your repository.
-
-Markdown
+[byte1 = ASCII character] [byte2 = color attribute]
 
 
----
+The function:
+
+updateScreen:
+    mov ax, 0B800h
+    mov es, ax
+    mov cx, 2000        ; 80 × 25 cells
+    mov bx, 0
+clear_loop:
+    mov word ptr es:[bx], 0720h ; space + light gray
+    add bx, 2
+    loop clear_loop
+    ret
 
 
+✔ Efficiently clears the screen
+✔ Uses direct memory access
 
- 
+2. 🚗 Car Rendering
+
+Your car is drawn at:
+
+carX = horizontal position
+carY = vertical position
 
 
+Using:
 
+drawCar:
+    mov ax, 0B800h
+    mov es, ax
+    mov bx, carY
+    mov dx, 160
+    mul dx             ; row offset
+    add bx, ax
+    mov dx, carX
+    shl dx, 1          ; each column = 2 bytes
+    add bx, dx
+    mov ah, 04h        ; red color
+    mov al, 'A'        ; car symbol
+    mov word ptr es:[bx], ax
+
+3. ⬇️ Obstacle Generation & Movement
+
+Obstacles fall from the top by repeatedly increasing their Y position:
+
+inc byte ptr obstacleY
+cmp obstacleY, 24
+jle skip_reset
+
+reset:
+    mov obstacleX, randomColumn
+    mov obstacleY, 0
+
+
+Each frame redraws them.
+
+4. 🪙 Coin System
+
+Coins behave similarly to obstacles but give score instead of collision:
+
+inc byte ptr coinY
+cmp coinY, 24
+jle skip_coin_reset
+mov coinY, 0
+
+
+When carX == coinX and Y positions match → score++
+
+5. 💥 Collision Detection
+mov al, carX
+cmp al, obstacleX
+jne no_collision
+
+mov al, carY
+cmp al, obstacleY
+jne no_collision
+
+; collision happened!
+
+
+If both X and Y match → game over.
+
+6. ⌨️ Keyboard Input Handling
+mov ah, 01h
+int 16h          ; check key
+jz no_key        ; no input
+
+mov ah, 00h
+int 16h          ; read key
+cmp ah, 4Bh      ; left arrow
+je move_left
+cmp ah, 4Dh      ; right arrow
+je move_right
+
+
+Arrow keys move the car by adjusting carX.
+
+7. 🕒 Timing Control (Game Speed)
+
+A simple delay loop provides basic throttling:
+
+delay:
+    mov cx, 0FFFFh
+    mov dx, 03000h
+delay_loop:
+    dec dx
+    jnz delay_loop
+    loop delay_loop
+
+📈 Possible Improvements
+
+Add start menu & game over screen
+
+Implement levels / difficulty scaling
+
+Add sound using PC speaker (INT 1Ah or OUT 61h)
+
+Use double buffering for smoother rendering
+
+Replace symbols with ASCII art cars
+
+Add high score system
